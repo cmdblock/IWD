@@ -1,7 +1,7 @@
 clear all;
 clc;
 N_IWD=30;
-N_C=100;
+N_C=50;
 a_v=1000;
 b_v=0.01;
 c_v=1;
@@ -15,7 +15,7 @@ epsilon_v=0.0001;
 rho=0.9;
 T_B=10000;
 radius=20;
-iterations=100;
+iterations=2;
 
 for i=1 : N_C
     city_set(1,i)=i;
@@ -27,16 +27,12 @@ for i=1 : N_C
     end
 end
 
-% for i=1 : N_C
-%     tmp_sita=2*pi*i/N_C;
-%     z3(i)=radius*cos(tmp_sita);
-%     z4(i)=radius*sin(tmp_sita);
-% end
 
 for i=1 : N_C
-    tmp_rand=2*pi*rand;
-    c(i).x=radius*cos(tmp_rand);
-    c(i).y=radius*sin(tmp_rand);
+%     tmp_rand=2*pi*rand;
+    tmp_sita=2*pi*i/N_C;
+    c(i).x=radius*cos(tmp_sita);
+    c(i).y=radius*sin(tmp_sita);
     z1(i)=c(i).x;
     z2(i)=c(i).y;
 %     display(c(1,i).x^2+c(1,i).y^2);
@@ -49,14 +45,19 @@ end
 v_c=cell(N_IWD,1);
 probability_IWD=cell(N_IWD,1);
 delta_soil=zeros(N_IWD,1);
+re=1;
 
 %%
 for its=1 : iterations
+    display(its);
     for i=1 : N_IWD
         v_c{i,1}=floor(random('unif',1,N_C));
     %     v_c{i,1}=mod(i,N_C);
     end
-
+    
+    for k=1 : N_IWD
+        probability_IWD{k,1}=[];
+    end
 
     for nc=1 : N_C
         for k=1 : N_IWD
@@ -66,13 +67,10 @@ for its=1 : iterations
                     probability_IWD{k,1}(v_c{k,1}(1,length(v_c{k,1})),m)=f_soil(v_c{k,1}(1,length(v_c{k,1})),m,k,soil,v_c,city_set,epsilon_s )/tmp_sum;
                 end
             end
-    %         for m=1 : length(cell2mat(v_c(k,1)))
-    %             probability_IWD{k,1}(v_c{k,1}(1,length(v_c{k,1})),v_c{k,1}(1,m))=f_soil(v_c{k,1}(1,length(v_c{k,1})),v_c{k,1}(1,m),k,soil,v_c,city_set,epsilon_s )/tmp_sum;
-    %         end
         end
 
         for k=1 : N_IWD
-            display(k);
+%             display(k);
             [u v]=max(probability_IWD{k,1}(v_c{k,1}(1,length(v_c{k,1})),:));
             vel_IWD{k,1}(1,length(vel_IWD{k,1})+1)=vel_IWD{k,1}(1,length(vel_IWD{k,1}))+a_v/(b_v+c_v*soil(v_c{k,1}(1,length(v_c{k,1})),v));
             delta_soil(v_c{k,1}(1,length(v_c{k,1})),v)=a_s/(b_s+c_s*time(v_c{k,1}(1,length(v_c{k,1})),v,vel_IWD{k,1}(1,length(vel_IWD{k,1})),epsilon_v,c));
@@ -81,6 +79,9 @@ for its=1 : iterations
             soil(v_c{k,1}(1,length(v_c{k,1})),v)=(1-rho)*soil(i,j)-rho*delta_soil(v_c{k,1}(1,length(v_c{k,1})),v);
             soil_IWD(k,1)=soil(k,1)+delta_soil(v_c{k,1}(1,length(v_c{k,1})),v);
             v_c{k,1}(1,length(v_c{k,1})+1)=v;
+%             if (length(cell2mat(v_c(k,1)))~=length(unique(cell2mat(v_c(k,1)))))
+%                 error('Error');
+%             end
         end
         if (length(v_c{1,1})==N_C)
             break;
@@ -89,20 +90,25 @@ for its=1 : iterations
         
     for k=1 : N_IWD
         Tour_IWD(k,1)=vector_distance(cell2mat(v_c(k,1)),z1,z2);
+        display(sprintf('its=%d,Tour_IWD(%d,1)=%d',its,k,Tour_IWD(k,1)));
     end
 
     [u2 v2]=min(Tour_IWD);
+    display(sprintf('its=%d,min=%d',its,u2));
+    celldisp(v_c(v2,1));
     soil(length(v_c{v2,1})-1,length(v_c{v2,1}))=(1-rho)*soil(length(v_c{v2,1})-1,length(v_c{v2,1}))+rho*2*soil_IWD(v2,1)/(N_C*(N_C-1));
 
     if (T_B > u2)
         T_B=u2;
-        route=v2;
+        route(re,:)=cell2mat(v_c(v2,1));
+        re=re+1;
     end
+%     display(sprintf('its=%d,T_B=%d',its,T_B));
 end
 %%
-
+display('--------------------------------');
 display(T_B);
-celldisp(v_c(route,1));
+display(route(re-1,:));
 plot(z1,z2,'ro');
 hold on;
-plot(z1(cell2mat(v_c(route,1))),z2(cell2mat(v_c(route,1))));
+plot(z1(route(re-1,:)),z2(route(re-1,:)));
